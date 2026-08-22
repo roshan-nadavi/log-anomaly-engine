@@ -1,0 +1,22 @@
+# Production override: swaps each service's local `build:` for a
+# pre-built GHCR image, so the deploy target only ever runs
+# `docker compose pull && up -d` — no building on the VM itself. That
+# matters concretely here: the e2-micro's single shared vCPU took over
+# 15 minutes to build the dashboard image locally the first time: real
+# builds belong on GitHub's runners, not the box serving traffic.
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+#        docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+services:
+  ingestion:
+    image: ghcr.io/roshan-nadavi/log-anomaly-engine-ingestion:latest
+  api:
+    image: ghcr.io/roshan-nadavi/log-anomaly-engine-api:latest
+  aggregator:
+    image: ghcr.io/roshan-nadavi/log-anomaly-engine-aggregator:latest
+  detector:
+    image: ghcr.io/roshan-nadavi/log-anomaly-engine-detector:latest
+  agent:
+    image: ghcr.io/roshan-nadavi/log-anomaly-engine-agent:latest
+  dashboard:
+    image: ghcr.io/roshan-nadavi/log-anomaly-engine-dashboard:latest

@@ -1,7 +1,6 @@
-# Phase 0 skeleton: build every service's image and push it to GHCR on
-# every push to main. Deliberately stops there — no tests, no SSH deploy
-# step yet. Phase 9 ("Full GitHub Actions pipeline: test -> build -> push
-# -> SSH deploy on merge to main") extends this workflow with those.
+# Phase 9: build every service's image, push to GHCR, then SSH into the
+# deploy VM and pull+restart. No test stage yet — the project has no
+# automated test suite to run here.
 name: build-and-push
 
 on:
@@ -18,16 +17,23 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      image_base: ${{ steps.image_base.outputs.value }}
     strategy:
       matrix:
         service:
-          - { name: ingestion, context: ingestion, dockerfile: ingestion/Dockerfile }
-          - { name: api, context: ., dockerfile: api/Dockerfile }
-          - { name: aggregator, context: ., dockerfile: workers/aggregator/Dockerfile }
-          - { name: detector, context: ., dockerfile: workers/detector/Dockerfile }
-          - { name: agent, context: ., dockerfile: workers/agent/Dockerfile }
-          - { name: generator, context: synthetic-gen, dockerfile: synthetic-gen/Dockerfile }
-          - { name: dashboard, context: dashboard, dockerfile: dashboard/Dockerfile }
+          - { name: ingestion, context: ingestion, dockerfile: ingestion/Dockerfile, build_args: "" }
+          - { name: api, context: ., dockerfile: api/Dockerfile, build_args: "" }
+          - { name: aggregator, context: ., dockerfile: workers/aggregator/Dockerfile, build_args: "" }
+          - { name: detector, context: ., dockerfile: workers/detector/Dockerfile, build_args: "" }
+          - { name: agent, context: ., dockerfile: workers/agent/Dockerfile, build_args: "" }
+          - { name: generator, context: synthetic-gen, dockerfile: synthetic-gen/Dockerfile, build_args: "" }
+          # NEXT_PUBLIC_* is inlined into the client bundle at build time,
+          # so the deploy target's real URL has to be known here, not
+          # just at container runtime. Set the NEXT_PUBLIC_API_URL repo
+          # variable (Settings -> Secrets and variables -> Actions ->
+          # Variables) once you know the deploy target's URL.
+          - { name: dashboard, context: dashboard, dockerfile: dashboard/Dockerfile, build_args: "NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}" }
     steps:
       - uses: actions/checkout@v4
 
@@ -53,6 +59,24 @@ jobs:
           context: ${{ matrix.service.context }}
           file: ${{ matrix.service.dockerfile }}
           push: true
+          build-args: ${{ matrix.service.build_args }}
           tags: ${{ steps.image_base.outputs.value }}-${{ matrix.service.name }}:latest
           cache-from: type=gha,scope=${{ matrix.service.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd log-anomaly-engine && git pull
+            cd infra
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
