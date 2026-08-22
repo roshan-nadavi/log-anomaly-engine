@@ -33,3 +33,12 @@ class LogEntry(BaseModel):
 class IngestResponse(BaseModel):
     accepted: int
     stream_id: Optional[str] = None
+
+
+class RawLogBatch(BaseModel):
+    """Free-text log lines from any source — syslog, application stdout,
+    JSON logs with unknown field names, whatever. Normalized into
+    LogEntry by app.parsers before publishing, same as /logs/batch."""
+
+    lines: list[str]
+    service: str = "unknown"  # fallback when a line's source can't be identified

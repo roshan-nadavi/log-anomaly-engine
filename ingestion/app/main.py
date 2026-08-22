@@ -6,7 +6,8 @@ from fastapi.responses import JSONResponse
 from redis.exceptions import RedisError
 
 from app.config import settings
-from app.models import IngestResponse, LogEntry
+from app.models import IngestResponse, LogEntry, RawLogBatch
+from app.parsers import normalize_line
 from app.rate_limit import client_ip, is_rate_limited
 from app.redis_client import get_client
 
@@ -15,7 +16,7 @@ logger = logging.getLogger("ingestion")
 
 app = FastAPI(title="LogPulse Ingestion API")
 
-RATE_LIMITED_PATHS = {"/logs", "/logs/batch"}
+RATE_LIMITED_PATHS = {"/logs", "/logs/batch", "/logs/raw"}
 
 
 @app.middleware("http")
@@ -58,8 +59,7 @@ async def ingest_log(entry: LogEntry):
     return IngestResponse(accepted=1, stream_id=stream_id)
 
 
-@app.post("/logs/batch", response_model=IngestResponse, status_code=202)
-async def ingest_batch(entries: list[LogEntry]):
+async def _publish_batch(entries: list[LogEntry]) -> IngestResponse:
     if not entries:
         raise HTTPException(status_code=400, detail="empty batch")
     if len(entries) > settings.batch_max_size:
@@ -82,3 +82,24 @@ async def ingest_batch(entries: list[LogEntry]):
         logger.error("failed to publish batch: %s", exc)
         raise HTTPException(status_code=503, detail="queue unavailable")
     return IngestResponse(accepted=len(entries))
+
+
+@app.post("/logs/batch", response_model=IngestResponse, status_code=202)
+async def ingest_batch(entries: list[LogEntry]):
+    return await _publish_batch(entries)
+
+
+@app.post("/logs/raw", response_model=IngestResponse, status_code=202)
+async def ingest_raw(batch: RawLogBatch):
+    """Accepts free-text log lines from any source — syslog, app stdout,
+    JSON logs with unrecognized field names, whatever — and normalizes
+    each one (app.parsers) into the same LogEntry schema /logs and
+    /logs/batch use, before publishing to the same stream. Everything
+    downstream is unaware this endpoint even exists."""
+    if len(batch.lines) > settings.batch_max_size:
+        raise HTTPException(
+            status_code=413,
+            detail=f"batch too large: {len(batch.lines)} entries (max {settings.batch_max_size})",
+        )
+    entries = [normalize_line(line, batch.service) for line in batch.lines]
+    return await _publish_batch(entries)
