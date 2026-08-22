@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LogPulse AI",
+  title: "LogPulse",
   description: "Real-time log anomaly detection engine",
 };
 

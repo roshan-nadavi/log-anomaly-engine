@@ -1,4 +1,4 @@
-# LogPulse AI
+# LogPulse
 
 Cloud-native, event-driven log ingestion and real-time anomaly detection engine. Combines a statistical ML detector (Isolation Forest + sequence-based signal) with an LLM incident agent that generates root-cause summaries, deployed on a self-managed GCP VM instead of managed PaaS (no Vercel/Supabase).
 

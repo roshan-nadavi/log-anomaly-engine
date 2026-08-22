@@ -50,7 +50,7 @@ export default function Home() {
     <main className="relative z-10 min-h-screen px-6 py-6 max-w-7xl mx-auto">
       <header className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">LogPulse AI</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">LogPulse</h1>
           <p className="text-sm text-muted">
             Public demo — no login required. Live event-driven log anomaly detection.
           </p>
