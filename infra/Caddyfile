@@ -1,0 +1,19 @@
+# Placeholder domain — replace with your real domain/subdomain once you
+# have one. Caddy issues and renews the TLS cert automatically via Let's
+# Encrypt as soon as this resolves to the VM's public IP and ports 80/443
+# are reachable — no manual cert setup needed.
+example.com {
+	# The query/streaming API (REST + the /stream/live SSE endpoint) lives
+	# under /api/*, with that prefix stripped before forwarding since the
+	# API service's own routes (e.g. /status, /demo/inject-spike) have no
+	# such prefix themselves.
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy api:8001
+	}
+
+	# Everything else goes to the Next.js dashboard.
+	handle {
+		reverse_proxy dashboard:3000
+	}
+}

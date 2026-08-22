@@ -1,0 +1,58 @@
+# Phase 0 skeleton: build every service's image and push it to GHCR on
+# every push to main. Deliberately stops there — no tests, no SSH deploy
+# step yet. Phase 9 ("Full GitHub Actions pipeline: test -> build -> push
+# -> SSH deploy on merge to main") extends this workflow with those.
+name: build-and-push
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service:
+          - { name: ingestion, context: ingestion, dockerfile: ingestion/Dockerfile }
+          - { name: api, context: ., dockerfile: api/Dockerfile }
+          - { name: aggregator, context: ., dockerfile: workers/aggregator/Dockerfile }
+          - { name: detector, context: ., dockerfile: workers/detector/Dockerfile }
+          - { name: agent, context: ., dockerfile: workers/agent/Dockerfile }
+          - { name: generator, context: synthetic-gen, dockerfile: synthetic-gen/Dockerfile }
+          - { name: dashboard, context: dashboard, dockerfile: dashboard/Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lowercase image base (GHCR requires it; org/repo names aren't always already lowercase)
+        id: image_base
+        run: echo "value=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: ${{ steps.image_base.outputs.value }}-${{ matrix.service.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}

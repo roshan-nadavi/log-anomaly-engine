@@ -1,0 +1,5 @@
+redis==5.2.1
+psycopg[binary]==3.2.3
+scikit-learn==1.6.0
+numpy==2.2.1
+scipy==1.14.1

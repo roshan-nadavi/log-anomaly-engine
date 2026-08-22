@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Keep in sync with lib/colors.ts (bg, text, edge) — plain CSS can't
+   import the TS token file directly. */
+body {
+  position: relative;
+  background-color: #18181b;
+  color: #eaeaec;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* A flat single-hex fill reads as an unstyled default. A faint accent
+   glow (::before) plus a subtle noise texture (::after) give the page
+   surface some depth without touching any component's own background. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(ellipse 1200px 600px at 50% -10%, rgba(63, 205, 191, 0.08), transparent 60%);
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #312f36;
+  border-radius: 4px;
+}

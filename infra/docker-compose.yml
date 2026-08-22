@@ -1,0 +1,181 @@
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-logpulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-logpulse}
+      POSTGRES_DB: ${POSTGRES_DB:-logpulse}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-logpulse}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  ingestion:
+    build: ../ingestion
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      STREAM_NAME: ${STREAM_NAME:-logs:raw}
+      STREAM_MAXLEN: ${STREAM_MAXLEN:-200000}
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  aggregator:
+    build:
+      context: ..
+      dockerfile: workers/aggregator/Dockerfile
+    # Belt-and-suspenders alongside the in-app Redis reconnect-with-backoff
+    # in main.py — this only matters for a genuinely unexpected crash
+    # (e.g. an unhandled Postgres error), since a Redis blip is now
+    # absorbed in-process without needing a restart.
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-logpulse}:${POSTGRES_PASSWORD:-logpulse}@postgres:5432/${POSTGRES_DB:-logpulse}
+      SOURCE_STREAM: ${STREAM_NAME:-logs:raw}
+      SINK_STREAM: windows:computed
+      WINDOW_SECONDS: ${WINDOW_SECONDS:-10}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  detector:
+    build:
+      context: ..
+      dockerfile: workers/detector/Dockerfile
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-logpulse}:${POSTGRES_PASSWORD:-logpulse}@postgres:5432/${POSTGRES_DB:-logpulse}
+      SOURCE_STREAM: windows:computed
+      ANOMALY_STREAM: anomalies:triggered
+      DETECTOR_BASELINE_WINDOWS: ${DETECTOR_BASELINE_WINDOWS:-10}
+      DETECTOR_REFIT_INTERVAL: ${DETECTOR_REFIT_INTERVAL:-10}
+      DETECTOR_CONTAMINATION: ${DETECTOR_CONTAMINATION:-0.1}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  agent:
+    build:
+      context: ..
+      dockerfile: workers/agent/Dockerfile
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-logpulse}:${POSTGRES_PASSWORD:-logpulse}@postgres:5432/${POSTGRES_DB:-logpulse}
+      LOG_STREAM: ${STREAM_NAME:-logs:raw}
+      SOURCE_STREAM: anomalies:triggered
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_CHAT_MODEL: ${GEMINI_CHAT_MODEL:-gemini-flash-latest}
+      GEMINI_EMBED_MODEL: ${GEMINI_EMBED_MODEL:-gemini-embedding-001}
+      LLM_DRY_RUN: ${LLM_DRY_RUN:-false}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-logpulse}:${POSTGRES_PASSWORD:-logpulse}@postgres:5432/${POSTGRES_DB:-logpulse}
+      WINDOW_STREAM: windows:computed
+      INCIDENT_STREAM: incidents:created
+      LOG_STREAM: ${STREAM_NAME:-logs:raw}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      INGESTION_URL: http://ingestion:8000
+      INJECT_SPIKE_COOLDOWN_SECONDS: ${INJECT_SPIKE_COOLDOWN_SECONDS:-30}
+      INJECT_SPIKE_BATCH_SIZE: ${INJECT_SPIKE_BATCH_SIZE:-80}
+    ports:
+      - "8001:8001"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: ../dashboard
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8001}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  generator:
+    build: ../synthetic-gen
+    profiles: ["tools"]  # not started by `up`; run explicitly via `--profile tools run generator`
+    depends_on:
+      - ingestion
+    command:
+      [
+        "--target-url", "http://ingestion:8000",
+        "--rate", "20",
+        "--duration", "120",
+        "--anomaly-start", "60",
+        "--anomaly-duration", "15",
+      ]
+
+  load-test:
+    image: grafana/k6:latest
+    profiles: ["tools"]  # not started by `up`; run explicitly via `--profile tools run --rm load-test`
+    volumes:
+      - ./load-test:/scripts:ro
+    environment:
+      TARGET_URL: http://ingestion:8000
+      RATE: ${LOAD_TEST_RATE:-10}
+      DURATION: ${LOAD_TEST_DURATION:-60s}
+      MODE: ${LOAD_TEST_MODE:-batch}
+    depends_on:
+      - ingestion
+    command: ["run", "/scripts/load_test.js"]
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["prod"]  # only for the real deploy target; local dev hits dashboard:3000/api:8001 directly
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - dashboard
+      - api
+
+volumes:
+  redis-data:
+  caddy-data:
+  caddy-config:
+  postgres-data:
