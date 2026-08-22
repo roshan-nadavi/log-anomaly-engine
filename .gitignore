@@ -17,3 +17,5 @@ Thumbs.db
 
 data/
 *.sqlite3
+
+.claude/

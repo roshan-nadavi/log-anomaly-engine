@@ -1,8 +1,9 @@
-# Placeholder domain — replace with your real domain/subdomain once you
-# have one. Caddy issues and renews the TLS cert automatically via Let's
-# Encrypt as soon as this resolves to the VM's public IP and ports 80/443
-# are reachable — no manual cert setup needed.
-example.com {
+# Free subdomain via is-a.dev (A record -> the VM's external IP). Caddy
+# issues and renews the TLS cert automatically via Let's Encrypt once DNS
+# resolves here and ports 80/443 are reachable — no manual cert setup
+# needed. Won't work until the is-a.dev registration PR is merged and
+# DNS has propagated.
+log-anomaly-engine.is-a.dev {
 	# The query/streaming API (REST + the /stream/live SSE endpoint) lives
 	# under /api/*, with that prefix stripped before forwarding since the
 	# API service's own routes (e.g. /status, /demo/inject-spike) have no
