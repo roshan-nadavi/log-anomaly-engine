@@ -1,9 +1,10 @@
-# Free subdomain via is-a.dev (A record -> the VM's external IP). Caddy
-# issues and renews the TLS cert automatically via Let's Encrypt once DNS
-# resolves here and ports 80/443 are reachable — no manual cert setup
-# needed. Won't work until the is-a.dev registration PR is merged and
-# DNS has propagated.
-log-anomaly-engine.is-a.dev {
+# Free subdomain via DuckDNS (A record -> the VM's external IP,
+# updated directly via DuckDNS's API — no proxy in front of it, unlike
+# is-a.dev which routes all *.is-a.dev traffic through Cloudflare
+# regardless of registration status). Caddy issues and renews the TLS
+# cert automatically via Let's Encrypt once ports 80/443 are reachable
+# — no manual cert setup needed.
+log-anomaly-engine.duckdns.org {
 	# The query/streaming API (REST + the /stream/live SSE endpoint) lives
 	# under /api/*, with that prefix stripped before forwarding since the
 	# API service's own routes (e.g. /status, /demo/inject-spike) have no
