@@ -2,6 +2,8 @@
 
 Cloud-native, event-driven log ingestion and real-time anomaly detection engine. Combines a statistical ML detector (Isolation Forest + sequence-based signal) with an LLM incident agent that generates root-cause summaries, deployed on a self-managed GCP VM instead of managed PaaS (no Vercel/Supabase).
 
+**Live demo:** [log-anomaly-engine.duckdns.org](https://log-anomaly-engine.duckdns.org)
+
 ## Architecture
 
 ```
@@ -22,25 +24,25 @@ Aggregator   sequence/n-gram model)
    └────┬─────┘
         │ spike/anomaly triggered
         ▼
-LLM Incident Agent (Groq Llama 3.1 / Gemini Flash)
+LLM Incident Agent (Gemini Flash)
    - retrieves similar past incidents (embedding KNN)
    - emits root cause + severity + remediation + confidence
         ▼
 PostgreSQL (self-hosted, logs + incidents)
         │ SSE / WebSockets
         ▼
-Next.js Live Dashboard (self-hosted, served via Node/nginx)
+Next.js Live Dashboard (self-hosted, served via Node behind Caddy)
 ```
 
 ## Tech stack & hosting
 
 | Layer | Technology | Hosting | Notes |
 |---|---|---|---|
-| Frontend | Next.js (TypeScript), Tailwind, Recharts | Self-hosted on GCP VM (Node process behind nginx/Caddy) | Replaces Vercel |
+| Frontend | Next.js (TypeScript), Tailwind, Recharts | Self-hosted on GCP VM (Node process behind Caddy) | Replaces Vercel |
 | Backend API | Python (FastAPI), Uvicorn | Same GCP VM, Docker container | |
 | Queue | Redis (Streams, not plain Pub/Sub) | Self-hosted container on the VM | Durable, replayable, no 10k/day cap |
 | Database | PostgreSQL | Self-hosted container on the VM (or Cloud SQL if RAM-constrained) | Replaces Supabase |
-| AI / LLM API | Groq API (Llama 3.1) / Gemini Flash | External API, free tier | |
+| AI / LLM API | Gemini Flash | External API, free tier | |
 | ML inference | Scikit-learn (Isolation Forest) + n-gram/Markov sequence model | Embedded in backend container | |
 | Reverse proxy / TLS | Caddy | Same VM | Automatic HTTPS |
 | Compute | GCP Compute Engine `e2-micro` (Always Free) | `us-west1` / `us-central1` / `us-east1` | Trial credits used to build/test on a larger instance first |
