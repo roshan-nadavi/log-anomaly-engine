@@ -9,9 +9,9 @@ class Settings(BaseSettings):
     # few hundred bytes each stays well under 1GB with headroom for
     # Postgres + the app processes running alongside it.
     stream_maxlen: int = 200_000
-    # Per-IP request rate limit on /logs and /logs/batch — this is the
+    # Per-IP request rate limit on the ingestion endpoints — this is the
     # only fully open, unauthenticated write path into the system, so
-    # it's the one that most needs abuse protection (Phase 8).
+    # it's the one that most needs abuse protection.
     rate_limit_per_minute: int = 600
     rate_limit_window_seconds: int = 60
     # Caps a single /logs/batch request's entry count, independent of the

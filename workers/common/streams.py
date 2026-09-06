@@ -2,9 +2,9 @@ import redis
 
 # A dropped Redis connection (container restart, brief network blip) is an
 # expected, transient failure that every consumer loop should absorb by
-# retrying, not a reason to crash the process — see Phase 8 chaos-test
-# findings. redis-py's connection pool reconnects transparently on the
-# next call, so callers just need to catch these, back off, and retry.
+# retrying, not a reason to crash the process. redis-py's connection pool
+# reconnects transparently on the next call, so callers just need to
+# catch these, back off, and retry.
 TRANSIENT_REDIS_ERRORS = (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError)
 
 

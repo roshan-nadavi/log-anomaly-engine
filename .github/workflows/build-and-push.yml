@@ -1,5 +1,5 @@
-# Phase 9: build every service's image, push to GHCR, then SSH into the
-# deploy VM and pull+restart. No test stage yet — the project has no
+# Builds every service's image, pushes to GHCR, then SSHes into the
+# deploy VM to pull+restart. No test stage yet — the project has no
 # automated test suite to run here.
 name: build-and-push
 

@@ -1,4 +1,4 @@
-"""Phase 3 — rolling-window aggregator.
+"""Rolling-window aggregator.
 
 Consumes raw log entries from the `logs:raw` Redis Stream via a
 consumer group, buckets them into tumbling windows (wall-clock based —

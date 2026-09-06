@@ -1,4 +1,4 @@
-"""Phase 4 — ensemble anomaly detector.
+"""Ensemble anomaly detector.
 
 Consumes window feature vectors from `windows:computed` and scores each
 one with two independent signals:
@@ -96,8 +96,7 @@ class SequenceModel:
         distribution is Gaussian. These scores are -log(probability) and
         are naturally right-skewed, so a mean+3sigma threshold both
         under-fires (misses genuinely rare sequences under a heavy tail)
-        and over-fires (flags routine tail variance as anomalous) —
-        exactly the false-positive behavior seen in Phase 4 verification.
+        and over-fires (flags routine tail variance as anomalous).
         """
         n = len(scores)
         if n == 0:

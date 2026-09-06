@@ -1,4 +1,4 @@
-"""Phase 5 — LLM incident agent.
+"""LLM incident agent.
 
 Consumes flagged anomalies from `anomalies:triggered`, pulls the ~30
 surrounding raw log entries out of the `logs:raw` Redis stream by time

@@ -1,4 +1,4 @@
-"""Phase 6 — read/query API + live streaming.
+"""Read/query API + live streaming.
 
 Separate from the ingestion service on purpose: this process holds
 long-lived SSE connections and serves concurrent REST queries on the

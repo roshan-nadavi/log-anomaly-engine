@@ -1,5 +1,5 @@
-// Phase 8 load test — hits the ingestion API at a sustained arrival rate
-// and reports p50/p90/p95/p99 latency and throughput. Uses a
+// Load test — hits the ingestion API at a sustained arrival rate and
+// reports p50/p90/p95/p99 latency and throughput. Uses a
 // constant-arrival-rate executor rather than a fixed VU count so RATE
 // stays accurate regardless of how latency shifts under load (VUs scale
 // up automatically to sustain the target rate).
@@ -31,8 +31,7 @@ export const options = {
       maxVUs: Math.max(50, RATE * 10),
     },
   },
-  // Explicit p50/p99 in the printed summary, matching what Phase 8 asks
-  // this test to report (k6's default summary only shows p90/p95).
+  // Explicit p50/p99 in the printed summary (k6's default only shows p90/p95).
   summaryTrendStats: ["avg", "min", "med", "max", "p(50)", "p(90)", "p(95)", "p(99)"],
   thresholds: {
     http_req_failed: ["rate<0.01"],
