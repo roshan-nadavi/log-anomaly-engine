@@ -67,7 +67,7 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - name: SSH deploy
         uses: appleboy/ssh-action@v1.0.3
