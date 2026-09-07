@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ArchitectureDiagram from "@/components/ArchitectureDiagram";
+import HowItWorks from "@/components/HowItWorks";
 import IncidentFeed from "@/components/IncidentFeed";
 import InjectSpikeButton from "@/components/InjectSpikeButton";
 import LogScroll from "@/components/LogScroll";
@@ -21,7 +22,7 @@ function mergeWindows(history: WindowMetric[], live: WindowMetric[]): WindowMetr
 }
 
 export default function Home() {
-  const [tab, setTab] = useState<"dashboard" | "architecture">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "architecture" | "how-it-works">("dashboard");
   const [history, setHistory] = useState<WindowMetric[]>([]);
   const [incidentHistory, setIncidentHistory] = useState<Incident[]>([]);
   const [status, setStatus] = useState<StatusResponse | null>(null);
@@ -81,9 +82,19 @@ export default function Home() {
         >
           Architecture &amp; Cloud Topology
         </button>
+        <button
+          onClick={() => setTab("how-it-works")}
+          className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+            tab === "how-it-works"
+              ? "bg-surface2 text-accent border border-accent/30"
+              : "text-muted border border-transparent hover:text-neutral-200"
+          }`}
+        >
+          How It Works
+        </button>
       </nav>
 
-      {tab === "dashboard" ? (
+      {tab === "dashboard" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 flex flex-col gap-4">
             <MetricsChart windows={windows} />
@@ -91,9 +102,9 @@ export default function Home() {
           </div>
           <IncidentFeed liveIncidents={live.incidents} history={incidentHistory} />
         </div>
-      ) : (
-        <ArchitectureDiagram />
       )}
+      {tab === "architecture" && <ArchitectureDiagram />}
+      {tab === "how-it-works" && <HowItWorks />}
     </main>
   );
 }
